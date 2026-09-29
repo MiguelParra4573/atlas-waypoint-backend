@@ -19,7 +19,7 @@ Requisitos: Java 21, Node 22, Docker.
 
 ```bash
 cp .env.example .env
-docker compose up -d          # Postgres, Redis, Kafka (KRaft), Kafka UI en :8088
+docker compose up -d          # Postgres :5434, Redis :6379, Kafka :9094 (KRaft), Kafka UI :8088
 cd backend && ./mvnw spring-boot:run
 curl localhost:8080/actuator/health   # {"status":"UP"}
 cd frontend && npm install && npm run dev
