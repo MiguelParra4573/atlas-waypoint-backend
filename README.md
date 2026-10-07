@@ -1,35 +1,33 @@
-# Atlas Waypoint — Torre de control de flota
+# Atlas Waypoint — Backend
 
-Torre de control que muestra en vivo la posición de 50 a 200 vehículos simulados, el estado de sus entregas y alertas operativas, con acceso por rol.
+Torre de control de flota: posición en vivo de 50 a 200 vehículos simulados, estado de entregas y alertas operativas, con acceso por rol.
 
-Stack: Spring Boot (WebFlux) · Kafka · Redis · Postgres · React + TypeScript. Plan completo en `docs/Plan Torre de control de flota (portafolio).md`.
+Stack: Spring Boot 4 (WebFlux, Java 21) · R2DBC · Liquibase · Kafka · Redis · Postgres. El frontend (React + TypeScript) vive en [atlas-waypoint-frontend](https://github.com/MiguelParra4573/atlas-waypoint-frontend). Plan completo en `docs/Plan Torre de control de flota (portafolio).md`.
 
 ## Estructura
 
-| Carpeta | Contenido |
+| Ruta | Contenido |
 | --- | --- |
-| `backend` | Servicio Spring Boot (API, ingesta y reglas) |
-| `frontend` | React + Vite + TypeScript |
-| `simulator` | Simulador de flota (Fase 3) |
-| `docs` | ADRs y documentación |
+| `src/` | Servicio Spring Boot (API, ingesta y reglas) |
+| `simulator/` | Simulador de flota (Fase 3) |
+| `docs/` | Plan y ADRs (`docs/adr/`) |
+| `docker-compose.yml` | Postgres, Redis, Kafka (KRaft) y Kafka UI para desarrollo local |
 
 ## Cómo levantar el entorno
 
-Requisitos: Java 21, Node 22, Docker.
+Requisitos: Java 21 y Docker (también para los tests, que usan Testcontainers).
 
 ```bash
 cp .env.example .env
 docker compose up -d          # Postgres :5434, Redis :6379, Kafka :9094 (KRaft), Kafka UI :8088
-cd backend && ./mvnw spring-boot:run
+./mvnw spring-boot:run
 curl localhost:8080/actuator/health   # {"status":"UP"}
-cd frontend && npm install && npm run dev
 ```
 
 ## Tests
 
 ```bash
-cd backend && ./mvnw verify
-cd frontend && npm test
+./mvnw verify
 ```
 
 Commits convencionales (`feat:`, `fix:`, `chore:`...). Una fase = una rama + un PR + un tag.

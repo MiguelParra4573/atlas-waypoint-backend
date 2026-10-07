@@ -9,23 +9,11 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.promethea.atlas</groupId>
-	<artifactId>waypoint</artifactId>
+	<artifactId>atlas-waypoint-backend</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>waypoint</name>
-	<description/>
-	<url/>
-	<licenses>
-		<license/>
-	</licenses>
-	<developers>
-		<developer/>
-	</developers>
-	<scm>
-		<connection/>
-		<developerConnection/>
-		<tag/>
-		<url/>
-	</scm>
+	<name>Atlas Waypoint Backend</name>
+	<description>Torre de control de flota: API reactiva, ingesta de telemetría y reglas de alertas</description>
+	<url>https://github.com/MiguelParra4573/atlas-waypoint-backend</url>
 	<properties>
 		<java.version>21</java.version>
 	</properties>

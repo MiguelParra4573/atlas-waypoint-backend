@@ -55,7 +55,7 @@ La ingesta y la API viven en el mismo servicio, separadas por paquetes. Dividirl
 
 El objetivo es tener un repo que se levante con un solo comando y CI verde desde el primer commit.
 
-- [ ] Monorepo con `/backend`, `/frontend`, `/simulator` y `/docs`
+- [x] Dos repos públicos: `atlas-waypoint-backend` (servicio, `/simulator`, `/docs` y compose) y `atlas-waypoint-frontend`
 - [ ] `docker-compose.yml` con Postgres, Redis, Kafka (modo KRaft) y Kafka UI
 - [ ] Backend Spring Boot (Java 21, WebFlux, Actuator) con `/actuator/health`
 - [ ] Frontend con Vite + React + TypeScript
