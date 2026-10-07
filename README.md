@@ -6,6 +6,8 @@ Stack: Spring Boot 4 (WebFlux, Java 21) · R2DBC · Liquibase · Kafka · Redis 
 
 ## Estructura
 
+Sugerencia de disposición local: una carpeta `atlas-waypoint/` con este repo en `backend/` y el frontend clonado en `frontend/`.
+
 | Ruta | Contenido |
 | --- | --- |
 | `src/` | Servicio Spring Boot (API, ingesta y reglas) |

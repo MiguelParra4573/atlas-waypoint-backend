@@ -1,3 +1,5 @@
+name: atlas-waypoint
+
 services:
   postgres:
     image: postgres:16
