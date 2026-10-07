@@ -1,0 +1,8 @@
+# Un archivo por change set en db/changelog/changes/, incluidos en orden alfabético.
+# Convención de nombres: NNN-descripcion.yaml (001-esquema-inicial.yaml, ...)
+databaseChangeLog:
+  - includeAll:
+      path: db/changelog/changes/
+      relativeToChangelogFile: false
+      endsWithFilter: .yaml
+      errorIfMissingOrEmpty: false

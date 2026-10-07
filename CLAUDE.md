@@ -23,14 +23,14 @@ Paquete base: `com.promethea.atlas.waypoint`, organizado por feature (`fleet`, `
 cp .env.example .env
 docker compose up -d                       # Postgres :5434, Redis :6379, Kafka :9094, Kafka UI :8088
 ./mvnw spring-boot:run                     # API en :8080, health en /actuator/health
-./mvnw verify                              # build + tests
+./mvnw verify                              # build + tests (necesita Docker corriendo: Testcontainers levanta Postgres)
 ```
 
 Los puertos de Postgres (5434) y Kafka (9094) están remapeados porque 5432/9092 suelen estar ocupados en la máquina del autor.
 
 ## Decisiones fijas
 
-- **Migraciones con Liquibase, no Flyway.** Con R2DBC, Liquibase corre por JDBC solo al arrancar. Changelogs en `src/main/resources/db/changelog/`.
+- **Migraciones con Liquibase, no Flyway.** Con R2DBC, Liquibase corre por JDBC solo al arrancar. Changelog maestro en `src/main/resources/db/changelog/db.changelog-master.yaml`; cada cambio es un archivo `NNN-descripcion.yaml` en `db/changelog/changes/` y nunca se edita uno ya aplicado (ADR 0002).
 - Stack reactivo de punta a punta: WebFlux, R2DBC, reactor-kafka, Redis reactivo. No introducir llamadas bloqueantes en el camino reactivo.
 - DTOs separados de las entidades. Errores con `ProblemDetail` (RFC 7807).
 - Kafka: clave = `vehicleId` para conservar orden por vehículo. Eventos JSON con `schemaVersion`.
@@ -41,5 +41,5 @@ Los puertos de Postgres (5434) y Kafka (9094) están remapeados porque 5432/9092
 - Una fase = una rama + un PR + un tag. No se avanza sin cumplir el "Hecho cuando" de la fase.
 - Commits convencionales (`feat:`, `fix:`, `chore:`, `docs:`, `test:`...).
 - Decisiones de arquitectura en ADRs cortos (una página) en `docs/adr/`.
-- Pruebas: repositorios con Testcontainers (Postgres real), servicios con `StepVerifier`, componentes React con Testing Library.
+- Pruebas: los `@SpringBootTest` importan `TestcontainersConfiguration` (Postgres real con `@ServiceConnection`); repositorios con Testcontainers, servicios con `StepVerifier`.
 - `.env` no se commitea; el contrato de variables vive en `.env.example`.
