@@ -2,7 +2,7 @@
 
 Torre de control que muestra en vivo la posición de 50 a 200 vehículos simulados, el estado de sus entregas y alertas operativas, con acceso por rol.
 
-Stack: Spring Boot (WebFlux) · Kafka · Redis · Postgres · React + TypeScript. Plan completo en `Plan Torre de control de flota (portafolio).md`.
+Stack: Spring Boot (WebFlux) · Kafka · Redis · Postgres · React + TypeScript. Plan completo en `docs/Plan Torre de control de flota (portafolio).md`.
 
 ## Estructura
 

@@ -1,6 +1,6 @@
 # Plan: Torre de control de flota (portafolio)
 
-2026-09-21 · @Someone
+Sep 21, 2026 · @Miguel
 
 ## Objetivo y alcance
 
@@ -47,7 +47,7 @@ La ingesta y la API viven en el mismo servicio, separadas por paquetes. Dividirl
 | Kafka | Telemetría y alertas como eventos. Clave = `vehicleId` para conservar el orden por vehículo |
 | Redis | Última posición por vehículo, estado de reglas con ventana, cache de KPIs, rate limiting |
 | Postgres | Fuente de verdad: vehículos, conductores, entregas, alertas y telemetría histórica |
-| WebFlux + R2DBC | API no bloqueante y streaming SSE. Flyway aplica las migraciones (usa JDBC solo al arrancar) |
+| WebFlux + R2DBC | API no bloqueante y streaming SSE. Liquibase aplica las migraciones (usa JDBC solo al arrancar) |
 | Spring Security | JWT, roles y autorización por endpoint |
 | React + TypeScript | Mapa, panel de flota, alertas y KPIs |
 
@@ -76,7 +76,7 @@ El objetivo es un CRUD reactivo y probado sobre el modelo mínimo, antes de toca
 | `position` | vehículo, timestamp, lat, lon, velocidad, rumbo |
 | `alert` | id, vehículo, tipo, severidad, timestamp, reconocida por |
 
-- [ ] Migraciones Flyway V1 con índice en `position (vehicle_id, ts)`
+- [ ] Migraciones Liquibase (changelog YAML, changeSet inicial) con índice en `position (vehicle_id, ts)`
 - [ ] Repositorios R2DBC y servicios, con DTOs separados de las entidades
 - [ ] CRUD de vehículos, conductores y entregas con Bean Validation
 - [ ] Manejo global de errores con `ProblemDetail` (RFC 7807)
