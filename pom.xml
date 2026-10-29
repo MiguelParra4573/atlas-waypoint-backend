@@ -31,8 +31,19 @@
 		     pide una entrada en docs/bitacora.md. Ver convenciones.md. -->
 		<jacoco.linea.minima>0.00</jacoco.linea.minima>
 		<jacoco.rama.minima>0.00</jacoco.rama.minima>
+		<error-prone.version>2.51.0</error-prone.version>
+		<nullaway.version>0.14.3</nullaway.version>
 	</properties>
 	<dependencies>
+		<!-- Anotaciones de nulabilidad. Llegan transitivas via spring-core, pero el
+		     codigo las importa directo (@NullMarked en los package-info del dominio,
+		     @Nullable en los componentes de los records), y depender de un
+		     transitivo que se usa en codigo es la deuda que explota en el upgrade
+		     que lo quita. La version la gestiona el BOM de Boot. -->
+		<dependency>
+			<groupId>org.jspecify</groupId>
+			<artifactId>jspecify</artifactId>
+		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>
@@ -62,6 +73,87 @@
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
+
+	<profiles>
+		<!-- Error Prone y NullAway. En un perfil activo por defecto y desactivable
+		     con `-Dsin-calidad-estricta`, porque son las piezas del harness que mas
+		     se rompen con un upgrade de JDK o de Boot: se acoplan a internals de
+		     javac. No "solo en CI": si solo corriera en CI, el fallo se descubriria
+		     al abrir el PR, que es el peor momento.
+
+		     Necesita los add-exports de jdk.compiler que declara .mvn/jvm.config. -->
+		<profile>
+			<id>calidad-estricta</id>
+			<activation>
+				<property>
+					<name>!sin-calidad-estricta</name>
+				</property>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-compiler-plugin</artifactId>
+						<configuration>
+							<annotationProcessorPaths>
+								<!-- Trampa: declarar annotationProcessorPaths apaga el
+								     descubrimiento de procesadores del classpath. Hoy no hay
+								     ninguno, pero cuando entre spring-boot-configuration-processor
+								     hay que listarlo aqui o deja de correr EN SILENCIO. -->
+								<path>
+									<groupId>com.google.errorprone</groupId>
+									<artifactId>error_prone_core</artifactId>
+									<version>${error-prone.version}</version>
+								</path>
+								<path>
+									<groupId>com.uber.nullaway</groupId>
+									<artifactId>nullaway</artifactId>
+									<version>${nullaway.version}</version>
+								</path>
+							</annotationProcessorPaths>
+							<compilerArgs combine.children="append">
+								<arg>-XDcompilePolicy=simple</arg>
+								<arg>--should-stop=ifError=FLOW</arg>
+								<!-- Lo exige Error Prone en JDK 21: sin este flag aborta con
+								     "-XDaddTypeAnnotationsToSymbol=true is required by Error Prone
+								     on JDK 21". -->
+								<arg>-XDaddTypeAnnotationsToSymbol=true</arg>
+								<!-- Una sola linea a proposito: partir el -Xplugin en varias
+								     inyecta saltos de linea literales en el argumento y produce un
+								     error de javac ininteligible.
+
+								     OnlyNullMarked acota NullAway a los paquetes anotados con
+								     @NullMarked (un package-info.java por paquete de dominio y de
+								     aplicacion), en vez de una lista AnnotatedPackages en el pom
+								     que habria que mantener cada vez que nace un modulo. Spring 7
+								     y Reactor 3.8 ya son @NullMarked con JSpecify, asi que sus
+								     firmas son informacion real para el analisis.
+
+								     JSpecifyMode en false de entrada: en true analiza tambien la
+								     nulabilidad de argumentos genericos (Mono<@Nullable T>) y
+								     produce diagnosticos de varianza que no se arreglan con una
+								     anotacion. Se evalua cuando ..application.. tenga puertos. -->
+								<arg>-Xplugin:ErrorProne -XepExcludedPaths:.*/target/generated-sources/.* -Xep:NullAway:ERROR -XepOpt:NullAway:OnlyNullMarked=true -XepOpt:NullAway:JSpecifyMode=false -XepOpt:NullAway:AcknowledgeRestrictiveAnnotations=true -XepOpt:NullAway:CheckOptionalEmptiness=true</arg>
+							</compilerArgs>
+						</configuration>
+						<executions>
+							<!-- Error Prone no corre sobre src/test: los tests usan @Autowired en
+							     campos, block() y fixtures que pasan null a proposito. -->
+							<execution>
+								<id>default-testCompile</id>
+								<configuration>
+									<annotationProcessorPaths combine.self="override"/>
+									<compilerArgs combine.self="override">
+										<arg>-Xlint:all,-processing,-serial,-this-escape,-missing-explicit-ctor,-requires-automatic,-requires-transitive-automatic</arg>
+									</compilerArgs>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 
 	<build>
 		<plugins>
