@@ -16,6 +16,12 @@
 	<url>https://github.com/MiguelParra4573/atlas-waypoint-backend</url>
 	<properties>
 		<java.version>21</java.version>
+		<!-- Interruptor de -Werror. En true, cualquier warning de javac rompe el
+		     build. Se apaga con -Dcompilacion.fallarPorWarning=false el dia de un
+		     upgrade de Boot o de JDK, para poder compilar y migrar; CI nunca pasa
+		     ese flag, asi que CI siempre es estricto. Ver convenciones.md. -->
+		<compilacion.fallarPorWarning>false</compilacion.fallarPorWarning>
+		<maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -53,6 +59,73 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+
+			<!-- Reglas del entorno. En validate, para que fallen en segundos, antes
+			     de cualquier descarga o compilacion. -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-enforcer-plugin</artifactId>
+				<version>${maven-enforcer-plugin.version}</version>
+				<executions>
+					<execution>
+						<id>reglas-del-entorno</id>
+						<phase>validate</phase>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<!-- El wrapper fija 3.9.16 y es only-script: si alguien corre el
+								     `mvn` del PATH, puede ser cualquier version, incluida Maven 4,
+								     cuya resolucion de pluginManagement difiere. Esta regla hace
+								     que el fallo diga "usa el wrapper". -->
+								<requireMavenVersion>
+									<version>[3.9.16,)</version>
+								</requireMavenVersion>
+								<!-- Rango cerrado a proposito: el harness se acopla a internals de
+								     javac (google-java-format, Error Prone). Con JDK 25 el fallo no
+								     seria "version no soportada" sino un IllegalAccessError
+								     incomprensible. Al migrar se sube este rango y setup-java en el
+								     mismo PR. -->
+								<requireJavaVersion>
+									<version>[21,22)</version>
+								</requireJavaVersion>
+								<banDuplicatePomDependencyVersions/>
+								<!-- Prohibe LATEST, RELEASE y rangos: es lo que garantiza que el
+								     build de hace tres meses de el mismo resultado. -->
+								<banDynamicVersions>
+									<allowSnapshots>false</allowSnapshots>
+								</banDynamicVersions>
+								<requireReleaseDeps/>
+								<!-- Sin <repositories> propios: un repo extra vuelve el build
+								     dependiente de un host que puede caerse o cambiar contenido. -->
+								<requireNoRepositories/>
+							</rules>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<configuration>
+					<!-- <parameters>true</parameters> y <release>21</release> ya los pone
+					     spring-boot-starter-parent; repetirlos aqui es ruido. -->
+					<showWarnings>true</showWarnings>
+					<showDeprecation>true</showDeprecation>
+					<failOnWarning>${compilacion.fallarPorWarning}</failOnWarning>
+					<compilerArgs>
+						<!-- Excluidos: `processing` (ruido garantizado en cuanto entre un
+						     procesador de anotaciones), `serial` (serialVersionUID es cargo
+						     cult en un servicio que serializa a JSON), `this-escape` (altisima
+						     tasa de ruido en constructores legitimos), y los tres de JPMS, que
+						     solo aplican con module-info.java. Se mantienen deprecation y
+						     removal, que son la senal que importa en la migracion a Spring 7. -->
+						<arg>-Xlint:all,-processing,-serial,-this-escape,-missing-explicit-ctor,-requires-automatic,-requires-transitive-automatic</arg>
+					</compilerArgs>
+				</configuration>
 			</plugin>
 		</plugins>
 	</build>
