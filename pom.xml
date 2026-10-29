@@ -22,6 +22,7 @@
 		     ese flag, asi que CI siempre es estricto. Ver convenciones.md. -->
 		<compilacion.fallarPorWarning>true</compilacion.fallarPorWarning>
 		<maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
+		<spotless-maven-plugin.version>3.10.4</spotless-maven-plugin.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -105,6 +106,40 @@
 						</configuration>
 					</execution>
 				</executions>
+			</plugin>
+
+			<!-- Formato del codigo. `./mvnw spotless:apply` formatea; spotless:check
+			     falla el build. El formateador es google-java-format en modo AOSP
+			     (4 espacios de bloque, 8 de continuacion, 100 columnas), que es
+			     exactamente el estilo que el codigo ya practicaba a mano. Ver ADR 0004. -->
+			<plugin>
+				<groupId>com.diffplug.spotless</groupId>
+				<artifactId>spotless-maven-plugin</artifactId>
+				<version>${spotless-maven-plugin.version}</version>
+				<configuration>
+					<lineEndings>GIT_ATTRIBUTES</lineEndings>
+					<java>
+						<includes>
+							<include>src/**/*.java</include>
+						</includes>
+						<googleJavaFormat>
+							<!-- Sin <version>: la fija Spotless, que esta pineado exacto. -->
+							<style>AOSP</style>
+							<!-- Reparte de forma estable los literales largos (las consultas
+							     @Query), en vez de dejar una particion que el siguiente apply
+							     vuelva a mover. -->
+							<reflowLongStrings>true</reflowLongStrings>
+							<formatJavadoc>true</formatJavadoc>
+						</googleJavaFormat>
+						<!-- Unico paso que agrega algo sobre google-java-format: deja las
+						     anotaciones TYPE_USE en la misma linea que el tipo. Necesario para
+						     que `@Id @Nullable UUID id` quede legible en la etapa 8. -->
+						<formatAnnotations/>
+						<!-- Sin importOrder ni removeUnusedImports: los hace el propio paso de
+						     google-java-format (fixImports), y dos motores sobre el mismo
+						     archivo se pelean en cada apply. -->
+					</java>
+				</configuration>
 			</plugin>
 
 			<plugin>
