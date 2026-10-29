@@ -20,7 +20,7 @@
 		     build. Se apaga con -Dcompilacion.fallarPorWarning=false el dia de un
 		     upgrade de Boot o de JDK, para poder compilar y migrar; CI nunca pasa
 		     ese flag, asi que CI siempre es estricto. Ver convenciones.md. -->
-		<compilacion.fallarPorWarning>false</compilacion.fallarPorWarning>
+		<compilacion.fallarPorWarning>true</compilacion.fallarPorWarning>
 		<maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
 	</properties>
 	<dependencies>
