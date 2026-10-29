@@ -140,6 +140,17 @@
 						     archivo se pelean en cada apply. -->
 					</java>
 				</configuration>
+				<executions>
+					<execution>
+						<id>spotless-check</id>
+						<!-- En validate, no en verify: falla en segundos, antes de que
+						     Testcontainers tire una imagen de Postgres. -->
+						<phase>validate</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 
 			<plugin>
