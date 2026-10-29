@@ -23,6 +23,14 @@
 		<compilacion.fallarPorWarning>true</compilacion.fallarPorWarning>
 		<maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
 		<spotless-maven-plugin.version>3.10.4</spotless-maven-plugin.version>
+		<jacoco-maven-plugin.version>0.8.16</jacoco-maven-plugin.version>
+		<!-- Umbrales de cobertura. En 0.00 mientras se mide: el codigo de dominio
+		     esta en el stash de la Fase 1 y medir con dos pruebas no dice nada.
+		     Se fijan en la medicion real redondeada hacia abajo al 0,05 cuando ese
+		     codigo vuelva. Destino declarado: 0.70 de LINE. Solo suben; bajarlos
+		     pide una entrada en docs/bitacora.md. Ver convenciones.md. -->
+		<jacoco.linea.minima>0.00</jacoco.linea.minima>
+		<jacoco.rama.minima>0.00</jacoco.rama.minima>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -149,6 +157,75 @@
 						<goals>
 							<goal>check</goal>
 						</goals>
+					</execution>
+				</executions>
+			</plugin>
+
+			<!-- Cobertura. El reporte queda en target/site/jacoco/index.html y CI lo
+			     sube como artifact. El umbral se fija midiendo, no a ojo: ver la
+			     nota de jacoco.linea.minima en <properties>.
+
+			     Trampa: si alguna vez se configura <argLine> en Surefire, tiene que
+			     ser <argLine>@{argLine} ...</argLine>. Sin el @{argLine} el agente
+			     de JaCoCo desaparece y la cobertura se reporta 0 SIN ningun error. -->
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>${jacoco-maven-plugin.version}</version>
+				<configuration>
+					<excludes>
+						<!-- main() mas una anotacion. La cubre WaypointApplicationTests por el
+						     hecho de arrancar, asi que miente en las dos direcciones. -->
+						<exclude>com/promethea/atlas/waypoint/WaypointApplication.class</exclude>
+						<!-- Cableado, no logica: un @SpringBootTest las cubre por arrancar e
+						     infla el numero sin probar nada. El patron $* alcanza a las clases
+						     anidadas, como el converter de enums. -->
+						<exclude>com/promethea/atlas/waypoint/**/*Config.class</exclude>
+						<exclude>com/promethea/atlas/waypoint/**/*Config$*.class</exclude>
+					</excludes>
+				</configuration>
+				<executions>
+					<execution>
+						<id>agente</id>
+						<goals>
+							<goal>prepare-agent</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>reporte</id>
+						<phase>test</phase>
+						<goals>
+							<goal>report</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>umbral</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+						<configuration>
+							<!-- En false mientras se mide. Pasa a true en la etapa 6, en un
+							     commit propio y revertible. -->
+							<haltOnFailure>false</haltOnFailure>
+							<rules>
+								<rule>
+									<element>BUNDLE</element>
+									<limits>
+										<limit>
+											<counter>LINE</counter>
+											<value>COVEREDRATIO</value>
+											<minimum>${jacoco.linea.minima}</minimum>
+										</limit>
+										<limit>
+											<counter>BRANCH</counter>
+											<value>COVEREDRATIO</value>
+											<minimum>${jacoco.rama.minima}</minimum>
+										</limit>
+									</limits>
+								</rule>
+							</rules>
+						</configuration>
 					</execution>
 				</executions>
 			</plugin>
