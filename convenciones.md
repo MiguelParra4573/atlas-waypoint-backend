@@ -134,10 +134,32 @@ Lo que `ConvencionesDeCodigoTests` prohíbe:
 - Anotaciones de Spring (`@Component`, `@Service`, `@Repository`) en `..domain..`.
 - `System.out`, `System.err`, `printStackTrace`.
 - `java.util.Date`, `Calendar`, `SimpleDateFormat`. Se usa `OffsetDateTime`.
+- `Thread.sleep`, que es la otra forma de parar un event loop. Lo correcto es `Mono.delay`.
+- Leer la hora del sistema desde `..domain..` (`OffsetDateTime.now`, `Instant.now`,
+  `System.currentTimeMillis`): el instante entra como parámetro o por un `Clock`, o la regla no se
+  puede probar.
 - Acceso a los repositorios de Spring Data desde fuera de `..infrastructure..` y `..application..`.
 - Entidades de dominio devueltas desde `..rest..`: los DTOs van separados.
+- Nombres que no ubican la capa: `*Controller` fuera de `..rest..`, `*Repository` fuera de
+  `..infrastructure..`.
 
 Si una regla molesta, se discute el documento y se cambia la regla. No se desactiva.
+
+Dos límites declarados, en vez de disimulados:
+
+- La regla de los DTOs mira el **tipo de retorno crudo**. Un `Mono<Vehicle>` borra su parámetro en
+  bytecode, así que la regla ve `Mono` y lo deja pasar. Atrapa el retorno directo, que es como se
+  escribe el atajo.
+- Varias reglas llevan `allowEmptyShould(true)` mientras el paquete al que apuntan no exista. Cada
+  válvula dice al lado qué la retira, y las que apuntan a `..domain..` y `..rest..` se retiran con
+  el código de la Fase 1.
+
+Y una trampa de ArchUnit que vale escribir, porque se descubrió en este repo y cuesta horas: una
+`ArchCondition` propia usada con `noClasses().should(...)` tiene que registrar el hallazgo con
+`SimpleConditionEvent.satisfied`, **no** con `violated`. `noClasses()` envuelve la condición en una
+negación que da vuelta la bandera de cada evento, así que con `violated` la regla pasa sobre código
+que la viola, sin dar ninguna señal. Se encontró inyectando la violación a propósito, que es la
+única forma de encontrarlo.
 
 ## Idioma y nombres
 

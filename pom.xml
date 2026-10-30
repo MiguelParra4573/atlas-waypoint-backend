@@ -31,6 +31,7 @@
 		     pide una entrada en docs/bitacora.md. Ver convenciones.md. -->
 		<jacoco.linea.minima>0.00</jacoco.linea.minima>
 		<jacoco.rama.minima>0.00</jacoco.rama.minima>
+		<archunit.version>1.5.1</archunit.version>
 		<error-prone.version>2.51.0</error-prone.version>
 		<nullaway.version>0.14.3</nullaway.version>
 	</properties>
@@ -70,6 +71,17 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webflux-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<!-- El artefacto core, no archunit-junit5: las reglas se escriben como @Test
+		     normales con .check(CLASES), asi que el motor propio solo agregaria una
+		     extension de JUnit y una forma distinta de declarar lo mismo. Lo unico que
+		     se pierde es la cache de importacion entre clases de prueba, y de eso se
+		     encarga ClasesDelProyecto. -->
+		<dependency>
+			<groupId>com.tngtech.archunit</groupId>
+			<artifactId>archunit</artifactId>
+			<version>${archunit.version}</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
