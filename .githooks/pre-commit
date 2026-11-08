@@ -1,0 +1,31 @@
+#!/bin/sh
+# Gate rapido local. La autoridad es CI; aqui solo corre lo que tarda segundos.
+#
+# No corre Testcontainers (minutos y Docker), ni Error Prone (compilacion
+# completa), ni JaCoCo. Eso es trabajo de CI.
+#
+# Verifica, nunca arregla: un hook que reescribe archivos con staging parcial
+# deja el indice desincronizado y commitea algo que nadie leyo.
+set -e
+
+# Solo lo que esta en el indice. ACMR excluye los borrados: verificar un archivo
+# borrado falla.
+cambiados=$(git diff --cached --name-only --diff-filter=ACMR)
+java=$(printf '%s\n' "$cambiados" | grep -E '\.java$|^pom\.xml$' || true)
+
+if [ -z "$java" ]; then
+    # Un commit que solo toca markdown no paga el arranque de la JVM.
+    exit 0
+fi
+
+echo "pre-commit: spotless:check + enforcer"
+
+# Se corre la fase, no los goals sueltos: asi hereda lo que se agregue a
+# validate y no hay una segunda lista que mantener.
+if ! ./mvnw -q -B -ntp -DskipTests validate; then
+    echo "" >&2
+    echo "pre-commit: el formato o las reglas de entorno fallaron." >&2
+    echo "  para el formato:  ./mvnw spotless:apply" >&2
+    echo "  para ver detalle: ./mvnw validate" >&2
+    exit 1
+fi

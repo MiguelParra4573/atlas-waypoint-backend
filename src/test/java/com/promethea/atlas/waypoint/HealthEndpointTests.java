@@ -10,15 +10,17 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 @AutoConfigureWebTestClient
 class HealthEndpointTests {
 
-    @Autowired
-    WebTestClient client;
+    @Autowired WebTestClient client;
 
     @Test
     void healthIsUp() {
-        client.get().uri("/actuator/health")
+        client.get()
+                .uri("/actuator/health")
                 .exchange()
-                .expectStatus().isOk()
+                .expectStatus()
+                .isOk()
                 .expectBody()
-                .jsonPath("$.status").isEqualTo("UP");
+                .jsonPath("$.status")
+                .isEqualTo("UP");
     }
 }

@@ -1,0 +1,12 @@
+# Commits de puro reformateo, que no deben aparecer en `git blame`.
+#
+# Activalo una vez por clon:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+#
+# GitHub lo honra automaticamente en su vista de blame.
+#
+# Regla: aqui solo entran commits generados por `./mvnw spotless:apply` sin
+# ninguna edicion manual. Si un commit mezcla formato con logica, no va.
+
+# style: aplicar spotless (sin cambios de comportamiento)
+cf4641fe9e5645df62124bb9890165bbd5cebb26

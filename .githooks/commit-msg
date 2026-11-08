@@ -1,0 +1,26 @@
+#!/bin/sh
+# Commits convencionales. Archivo identico en atlas-waypoint-backend y
+# atlas-waypoint-frontend: si se cambia uno, se cambia el otro.
+#
+# Valida solo el asunto. El cuerpo y el pie quedan libres: ahi van los
+# BREAKING CHANGE y las lineas de atribucion.
+mensaje=$(head -n1 "$1")
+
+# Los mensajes que genera git solo no se validan. Sin este escape, `git merge` y
+# `git rebase --autosquash` fallarian.
+case "$mensaje" in
+    "Merge "* | "Revert "* | "fixup! "* | "squash! "* | "Reapply "*) exit 0 ;;
+esac
+
+patron='^(build|chore|ci|docs|feat|fix|perf|refactor|style|test)(\([a-z0-9./-]+\))?!?: .{1,80}$'
+
+if printf '%s' "$mensaje" | grep -Eq "$patron"; then
+    exit 0
+fi
+
+echo "commit-msg: el asunto no es un commit convencional." >&2
+echo "  recibido: $mensaje" >&2
+echo "  esperado: <tipo>(<alcance opcional>): <asunto, hasta 80 caracteres>" >&2
+echo "  tipos:    build chore ci docs feat fix perf refactor style test" >&2
+echo "  ejemplo:  feat(fleet): endpoint de alta de vehiculo" >&2
+exit 1

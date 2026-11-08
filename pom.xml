@@ -16,8 +16,35 @@
 	<url>https://github.com/MiguelParra4573/atlas-waypoint-backend</url>
 	<properties>
 		<java.version>21</java.version>
+		<!-- Interruptor de -Werror. En true, cualquier warning de javac rompe el
+		     build. Se apaga con -Dcompilacion.fallarPorWarning=false el dia de un
+		     upgrade de Boot o de JDK, para poder compilar y migrar; CI nunca pasa
+		     ese flag, asi que CI siempre es estricto. Ver convenciones.md. -->
+		<compilacion.fallarPorWarning>true</compilacion.fallarPorWarning>
+		<maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
+		<spotless-maven-plugin.version>3.10.4</spotless-maven-plugin.version>
+		<jacoco-maven-plugin.version>0.8.16</jacoco-maven-plugin.version>
+		<!-- Umbrales de cobertura. En 0.00 mientras se mide: el codigo de dominio
+		     esta en el stash de la Fase 1 y medir con dos pruebas no dice nada.
+		     Se fijan en la medicion real redondeada hacia abajo al 0,05 cuando ese
+		     codigo vuelva. Destino declarado: 0.70 de LINE. Solo suben; bajarlos
+		     pide una entrada en docs/bitacora.md. Ver convenciones.md. -->
+		<jacoco.linea.minima>0.00</jacoco.linea.minima>
+		<jacoco.rama.minima>0.00</jacoco.rama.minima>
+		<archunit.version>1.5.1</archunit.version>
+		<error-prone.version>2.51.0</error-prone.version>
+		<nullaway.version>0.14.3</nullaway.version>
 	</properties>
 	<dependencies>
+		<!-- Anotaciones de nulabilidad. Llegan transitivas via spring-core, pero el
+		     codigo las importa directo (@NullMarked en los package-info del dominio,
+		     @Nullable en los componentes de los records), y depender de un
+		     transitivo que se usa en codigo es la deuda que explota en el upgrade
+		     que lo quita. La version la gestiona el BOM de Boot. -->
+		<dependency>
+			<groupId>org.jspecify</groupId>
+			<artifactId>jspecify</artifactId>
+		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>
@@ -46,13 +73,286 @@
 			<artifactId>spring-boot-starter-webflux-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<!-- El artefacto core, no archunit-junit5: las reglas se escriben como @Test
+		     normales con .check(CLASES), asi que el motor propio solo agregaria una
+		     extension de JUnit y una forma distinta de declarar lo mismo. Lo unico que
+		     se pierde es la cache de importacion entre clases de prueba, y de eso se
+		     encarga ClasesDelProyecto. -->
+		<dependency>
+			<groupId>com.tngtech.archunit</groupId>
+			<artifactId>archunit</artifactId>
+			<version>${archunit.version}</version>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
+
+	<profiles>
+		<!-- Error Prone y NullAway. En un perfil activo por defecto y desactivable
+		     con `-Dsin-calidad-estricta`, porque son las piezas del harness que mas
+		     se rompen con un upgrade de JDK o de Boot: se acoplan a internals de
+		     javac. No "solo en CI": si solo corriera en CI, el fallo se descubriria
+		     al abrir el PR, que es el peor momento.
+
+		     Necesita los add-exports de jdk.compiler que declara .mvn/jvm.config. -->
+		<profile>
+			<id>calidad-estricta</id>
+			<activation>
+				<property>
+					<name>!sin-calidad-estricta</name>
+				</property>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-compiler-plugin</artifactId>
+						<configuration>
+							<annotationProcessorPaths>
+								<!-- Trampa: declarar annotationProcessorPaths apaga el
+								     descubrimiento de procesadores del classpath. Hoy no hay
+								     ninguno, pero cuando entre spring-boot-configuration-processor
+								     hay que listarlo aqui o deja de correr EN SILENCIO. -->
+								<path>
+									<groupId>com.google.errorprone</groupId>
+									<artifactId>error_prone_core</artifactId>
+									<version>${error-prone.version}</version>
+								</path>
+								<path>
+									<groupId>com.uber.nullaway</groupId>
+									<artifactId>nullaway</artifactId>
+									<version>${nullaway.version}</version>
+								</path>
+							</annotationProcessorPaths>
+							<compilerArgs combine.children="append">
+								<arg>-XDcompilePolicy=simple</arg>
+								<arg>--should-stop=ifError=FLOW</arg>
+								<!-- Lo exige Error Prone en JDK 21: sin este flag aborta con
+								     "-XDaddTypeAnnotationsToSymbol=true is required by Error Prone
+								     on JDK 21". -->
+								<arg>-XDaddTypeAnnotationsToSymbol=true</arg>
+								<!-- Una sola linea a proposito: partir el -Xplugin en varias
+								     inyecta saltos de linea literales en el argumento y produce un
+								     error de javac ininteligible.
+
+								     OnlyNullMarked acota NullAway a los paquetes anotados con
+								     @NullMarked (un package-info.java por paquete de dominio y de
+								     aplicacion), en vez de una lista AnnotatedPackages en el pom
+								     que habria que mantener cada vez que nace un modulo. Spring 7
+								     y Reactor 3.8 ya son @NullMarked con JSpecify, asi que sus
+								     firmas son informacion real para el analisis.
+
+								     JSpecifyMode en false de entrada: en true analiza tambien la
+								     nulabilidad de argumentos genericos (Mono<@Nullable T>) y
+								     produce diagnosticos de varianza que no se arreglan con una
+								     anotacion. Se evalua cuando ..application.. tenga puertos. -->
+								<arg>-Xplugin:ErrorProne -XepExcludedPaths:.*/target/generated-sources/.* -Xep:NullAway:ERROR -XepOpt:NullAway:OnlyNullMarked=true -XepOpt:NullAway:JSpecifyMode=false -XepOpt:NullAway:AcknowledgeRestrictiveAnnotations=true -XepOpt:NullAway:CheckOptionalEmptiness=true</arg>
+							</compilerArgs>
+						</configuration>
+						<executions>
+							<!-- Error Prone no corre sobre src/test: los tests usan @Autowired en
+							     campos, block() y fixtures que pasan null a proposito. -->
+							<execution>
+								<id>default-testCompile</id>
+								<configuration>
+									<annotationProcessorPaths combine.self="override"/>
+									<compilerArgs combine.self="override">
+										<arg>-Xlint:all,-processing,-serial,-this-escape,-missing-explicit-ctor,-requires-automatic,-requires-transitive-automatic</arg>
+									</compilerArgs>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 
 	<build>
 		<plugins>
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+
+			<!-- Reglas del entorno. En validate, para que fallen en segundos, antes
+			     de cualquier descarga o compilacion. -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-enforcer-plugin</artifactId>
+				<version>${maven-enforcer-plugin.version}</version>
+				<executions>
+					<execution>
+						<id>reglas-del-entorno</id>
+						<phase>validate</phase>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<!-- El wrapper fija 3.9.16 y es only-script: si alguien corre el
+								     `mvn` del PATH, puede ser cualquier version, incluida Maven 4,
+								     cuya resolucion de pluginManagement difiere. Esta regla hace
+								     que el fallo diga "usa el wrapper". -->
+								<requireMavenVersion>
+									<version>[3.9.16,)</version>
+								</requireMavenVersion>
+								<!-- Rango cerrado a proposito: el harness se acopla a internals de
+								     javac (google-java-format, Error Prone). Con JDK 25 el fallo no
+								     seria "version no soportada" sino un IllegalAccessError
+								     incomprensible. Al migrar se sube este rango y setup-java en el
+								     mismo PR. -->
+								<requireJavaVersion>
+									<version>[21,22)</version>
+								</requireJavaVersion>
+								<banDuplicatePomDependencyVersions/>
+								<!-- Prohibe LATEST, RELEASE y rangos: es lo que garantiza que el
+								     build de hace tres meses de el mismo resultado. -->
+								<banDynamicVersions>
+									<allowSnapshots>false</allowSnapshots>
+								</banDynamicVersions>
+								<requireReleaseDeps/>
+								<!-- Sin <repositories> propios: un repo extra vuelve el build
+								     dependiente de un host que puede caerse o cambiar contenido. -->
+								<requireNoRepositories/>
+							</rules>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<!-- Formato del codigo. `./mvnw spotless:apply` formatea; spotless:check
+			     falla el build. El formateador es google-java-format en modo AOSP
+			     (4 espacios de bloque, 8 de continuacion, 100 columnas), que es
+			     exactamente el estilo que el codigo ya practicaba a mano. Ver ADR 0004. -->
+			<plugin>
+				<groupId>com.diffplug.spotless</groupId>
+				<artifactId>spotless-maven-plugin</artifactId>
+				<version>${spotless-maven-plugin.version}</version>
+				<configuration>
+					<lineEndings>GIT_ATTRIBUTES</lineEndings>
+					<java>
+						<includes>
+							<include>src/**/*.java</include>
+						</includes>
+						<googleJavaFormat>
+							<!-- Sin <version>: la fija Spotless, que esta pineado exacto. -->
+							<style>AOSP</style>
+							<!-- Reparte de forma estable los literales largos (las consultas
+							     @Query), en vez de dejar una particion que el siguiente apply
+							     vuelva a mover. -->
+							<reflowLongStrings>true</reflowLongStrings>
+							<formatJavadoc>true</formatJavadoc>
+						</googleJavaFormat>
+						<!-- Unico paso que agrega algo sobre google-java-format: deja las
+						     anotaciones TYPE_USE en la misma linea que el tipo. Necesario para
+						     que `@Id @Nullable UUID id` quede legible en la etapa 8. -->
+						<formatAnnotations/>
+						<!-- Sin importOrder ni removeUnusedImports: los hace el propio paso de
+						     google-java-format (fixImports), y dos motores sobre el mismo
+						     archivo se pelean en cada apply. -->
+					</java>
+				</configuration>
+				<executions>
+					<execution>
+						<id>spotless-check</id>
+						<!-- En validate, no en verify: falla en segundos, antes de que
+						     Testcontainers tire una imagen de Postgres. -->
+						<phase>validate</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+
+			<!-- Cobertura. El reporte queda en target/site/jacoco/index.html y CI lo
+			     sube como artifact. El umbral se fija midiendo, no a ojo: ver la
+			     nota de jacoco.linea.minima en <properties>.
+
+			     Trampa: si alguna vez se configura <argLine> en Surefire, tiene que
+			     ser <argLine>@{argLine} ...</argLine>. Sin el @{argLine} el agente
+			     de JaCoCo desaparece y la cobertura se reporta 0 SIN ningun error. -->
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>${jacoco-maven-plugin.version}</version>
+				<configuration>
+					<excludes>
+						<!-- main() mas una anotacion. La cubre WaypointApplicationTests por el
+						     hecho de arrancar, asi que miente en las dos direcciones. -->
+						<exclude>com/promethea/atlas/waypoint/WaypointApplication.class</exclude>
+						<!-- Cableado, no logica: un @SpringBootTest las cubre por arrancar e
+						     infla el numero sin probar nada. El patron $* alcanza a las clases
+						     anidadas, como el converter de enums. -->
+						<exclude>com/promethea/atlas/waypoint/**/*Config.class</exclude>
+						<exclude>com/promethea/atlas/waypoint/**/*Config$*.class</exclude>
+					</excludes>
+				</configuration>
+				<executions>
+					<execution>
+						<id>agente</id>
+						<goals>
+							<goal>prepare-agent</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>reporte</id>
+						<phase>test</phase>
+						<goals>
+							<goal>report</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>umbral</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+						<configuration>
+							<!-- En false mientras se mide. Pasa a true en la etapa 6, en un
+							     commit propio y revertible. -->
+							<haltOnFailure>false</haltOnFailure>
+							<rules>
+								<rule>
+									<element>BUNDLE</element>
+									<limits>
+										<limit>
+											<counter>LINE</counter>
+											<value>COVEREDRATIO</value>
+											<minimum>${jacoco.linea.minima}</minimum>
+										</limit>
+										<limit>
+											<counter>BRANCH</counter>
+											<value>COVEREDRATIO</value>
+											<minimum>${jacoco.rama.minima}</minimum>
+										</limit>
+									</limits>
+								</rule>
+							</rules>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<configuration>
+					<!-- <parameters>true</parameters> y <release>21</release> ya los pone
+					     spring-boot-starter-parent; repetirlos aqui es ruido. -->
+					<showWarnings>true</showWarnings>
+					<showDeprecation>true</showDeprecation>
+					<failOnWarning>${compilacion.fallarPorWarning}</failOnWarning>
+					<compilerArgs>
+						<!-- Excluidos: `processing` (ruido garantizado en cuanto entre un
+						     procesador de anotaciones), `serial` (serialVersionUID es cargo
+						     cult en un servicio que serializa a JSON), `this-escape` (altisima
+						     tasa de ruido en constructores legitimos), y los tres de JPMS, que
+						     solo aplican con module-info.java. Se mantienen deprecation y
+						     removal, que son la senal que importa en la migracion a Spring 7. -->
+						<arg>-Xlint:all,-processing,-serial,-this-escape,-missing-explicit-ctor,-requires-automatic,-requires-transitive-automatic</arg>
+					</compilerArgs>
+				</configuration>
 			</plugin>
 		</plugins>
 	</build>

@@ -23,8 +23,15 @@ Paquete base: `com.promethea.atlas.waypoint`, organizado por feature (`fleet`, `
 cp .env.example .env
 docker compose up -d                       # Postgres :5434, Redis :6379, Kafka :9094, Kafka UI :8088
 ./mvnw spring-boot:run                     # API en :8080, health en /actuator/health
-./mvnw verify                              # build + tests
+./mvnw verify                              # build + tests + todos los gates de calidad
+./mvnw spotless:apply                      # formatea (google-java-format AOSP)
+git config core.hooksPath .githooks        # una vez por clon: activa los hooks
 ```
+
+Las convenciones de código y los gates que rompen el build están en `convenciones.md`; el por qué de
+cada elección, en `docs/adr/0004-harness-de-calidad.md`. Dos escapes, solo para el día de un upgrade
+y nunca en CI: `-Dcompilacion.fallarPorWarning=false` apaga `-Werror` y `-Dsin-calidad-estricta`
+apaga Error Prone y NullAway.
 
 Los puertos de Postgres (5434) y Kafka (9094) están remapeados porque 5432/9092 suelen estar ocupados en la máquina del autor.
 

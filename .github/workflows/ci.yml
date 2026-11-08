@@ -2,12 +2,26 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
+
+# Sin esto se hereda el default del repositorio, que puede ser write-all: un
+# GITHUB_TOKEN con permiso de escritura en un job que ejecuta codigo de un PR de
+# fork.
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Solo en pull requests. Cancelar corridas de main o develop dejaria sin
+  # resultado justo el historial que se mira cuando algo se rompio.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   backend:
     runs-on: ubuntu-latest
+    # Sin limite, un Testcontainers colgado consume el default de 6 horas.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -15,4 +29,33 @@ jobs:
           distribution: temurin
           java-version: 21
           cache: maven
-      - run: ./mvnw -B verify
+
+      # Un solo job y un solo mvnw a proposito: enforcer, spotless, Error Prone,
+      # ArchUnit y JaCoCo estan atados al mismo ciclo de vida de Maven, asi que un
+      # job de "calidad" aparte volveria a compilar todo para ganar paralelismo
+      # sobre un build cuyo cuello de botella es la imagen de Postgres. Lo que se
+      # quiere -fallar rapido en lo barato- ya lo da el orden de fases: enforcer y
+      # spotless:check estan en validate y fallan en segundos.
+      #
+      # CI no pasa -Dcompilacion.fallarPorWarning ni -Dsin-calidad-estricta: los
+      # escapes son para el desarrollador el dia de un upgrade, no para CI.
+      - name: verify
+        run: ./mvnw -B -ntp verify
+
+      # Con if: always() porque el caso en que mas se quiere ver el reporte es
+      # justo cuando el umbral de cobertura fallo el build.
+      - name: reporte de cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco
+          path: target/site/jacoco/
+          if-no-files-found: warn
+
+      - name: reportes de prueba
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire
+          path: target/surefire-reports/
+          if-no-files-found: warn

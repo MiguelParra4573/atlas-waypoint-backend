@@ -30,4 +30,15 @@ curl localhost:8080/actuator/health   # {"status":"UP"}
 ./mvnw verify
 ```
 
-Commits convencionales (`feat:`, `fix:`, `chore:`...). Una fase = una rama + un PR + un tag.
+## Puesta a punto tras clonar
+
+```bash
+git config core.hooksPath .githooks                     # hooks de formato y de commit
+git config blame.ignoreRevsFile .git-blame-ignore-revs   # saca el reformateo del blame
+```
+
+Commits convencionales (`feat:`, `fix:`, `chore:`...), validados por `.githooks/commit-msg`. Una fase
+= una rama + un PR + un tag.
+
+Las convenciones de código y los gates que rompen el build están en [convenciones.md](convenciones.md);
+el por qué de cada elección, en `docs/adr/0004-harness-de-calidad.md`.

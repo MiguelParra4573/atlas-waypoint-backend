@@ -1,2 +1,21 @@
+# Fin de linea normalizado a LF en el indice y en el working tree.
+#
+# Sin la primera linea, `core.autocrlf` decide por su cuenta y el working tree
+# queda en CRLF mientras el .editorconfig pide LF: Spotless resuelve el fin de
+# linea por .gitattributes, encuentra CRLF donde el IDE escribio LF, y
+# `spotless:check` falla con un diff de puros \r que no tiene nada que ver con
+# el formato del codigo. `eol=lf` sobrescribe `core.autocrlf`.
+* text=auto eol=lf
+
+# El wrapper y los hooks los ejecuta sh: con CRLF fallan con
+# `bad interpreter: /bin/sh^M`, y en el caso de los hooks git no avisa, se los
+# salta en silencio.
 /mvnw text eol=lf
+/.githooks/** text eol=lf
+
+# Lo que ejecuta Windows si necesita CRLF.
 *.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+*.png binary
+*.jar binary
